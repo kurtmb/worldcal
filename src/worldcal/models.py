@@ -25,5 +25,24 @@ HAIKU_45 = ModelRecord(
     sampling_knobs="temperature_only",
 )
 
+SONNET_46 = ModelRecord(
+    id="sonnet-4.6",
+    provider="anthropic",
+    bedrock_model_id="us.anthropic.claude-sonnet-4-6",
+    display_name="Claude Sonnet 4.6",
+    seed_supported=False,
+    sampling_knobs="temperature_only",
+)
+
+SONNET_45 = ModelRecord(
+    id="sonnet-4.5",
+    provider="anthropic",
+    bedrock_model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    display_name="Claude Sonnet 4.5",
+    seed_supported=False,
+    sampling_knobs="temperature_only",
+)
+
 FIRST_MODELS = {m.id: m for m in (NOVA_MICRO, HAIKU_45)}
-FALLBACK_MODELS = {m.id: m for m in (NOVA_2_LITE,)}
+FALLBACK_MODELS = {m.id: m for m in (NOVA_2_LITE, SONNET_46)}
+JUDGE_MODEL = SONNET_45

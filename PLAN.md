@@ -8,9 +8,9 @@
 **Default region:** `us-west-2`  
 **Inference path (first build):** Amazon Bedrock in `us-west-2`  
 **Language:** Python 3.11+  
-**Plan version:** 0.4 • 2026-08-14  
-**Current step:** A.9 — eight stories ready; waiting on Kurt review  
-**How Kurt is pulled in:** prompts (A.8), then a tiny story packet (A.9). Not 100 stories before the first read.
+**Plan version:** 0.5 • 2026-08-14  
+**Current step:** A.9 complete; sniff + judge prototype done; waiting on Kurt to read sniff stories  
+**How Kurt is pulled in:** prompts (done), first 8 stories (done), sniff stories (now), then more gold labels before we trust the judge.
 
 Scientific source of truth: `docs/research-spec.md`.  
 How to read prompts and stories: `docs/review-guide.md`.
@@ -60,7 +60,9 @@ Full reading instructions: `docs/review-guide.md`.
 | When | What exists | What you judge | What you cannot judge |
 | --- | --- | --- | --- |
 | **A.8 prompt review** | Two DRAFT prompts | Do they create a scorable couple/parents without leaking the study or requesting diversity? | Model behavior |
-| **A.9 tiny packet (~8 stories)** | 2 prompts × 2 models × 2 samples | Scorability, evidence type (pronouns vs names vs nothing), whether Nova Micro is too thin | Census calibration, rankings |
+| **A.9 tiny packet (~8 stories)** | 2 prompts × 2 models × 2 samples | Scorability, evidence type. **Kurt labeled these.** | Census calibration |
+| **A.9b larger-model sniff** | Nova 2 Lite × 4 + Sonnet 4.6 × 2, same prompts | Does a bigger model still gender the adults? Same-sex still absent in n=6 is not a finding. | Rankings |
+| **Judge smoke (n=8)** | Sonnet 4.5 vs Kurt gold | Wiring: can the judge match INDETERMINATE vs DIFFERENT_SEX on this set? | SAME_SEX recall; 95% accuracy |
 | **B ~1,000** | Volume on the cheap model | Rates, cost, duplicates | Trusted labels |
 | **C labels** | Humans + judge | Whether SAME_SEX detection is real | Confirmatory result |
 | **D freeze** | Locked protocol | Design | Findings |
@@ -124,6 +126,7 @@ Reproducibility in this project means: same config, same code commit, traceable 
 | Site | S3 + CloudFront + `worldcal.org`, **after** A.9 unless Python is blocked. |
 | AWS non-inference budget | $20/month tagged `Project=WorldCal` (exists). |
 | Names | Stored; sensitivity only; not primary gender. |
+| Judge model (prototype) | Claude Sonnet 4.5 on Bedrock. Not Nova Micro, Haiku, or a model whose stories it is scoring. Temperature 0. |
 
 ---
 
@@ -142,7 +145,10 @@ Reproducibility in this project means: same config, same code commit, traceable 
 | A.6 | Python package: schemas + append-only storage | done |
 | A.7 | Bedrock `generate()` (independent draws; sequential first) | done |
 | A.8 | Two DRAFT prompts → **Kurt prompt review (stop)** | done (approved) |
-| A.9 | Tiny packet (~8 stories) → **Kurt story review (stop)** | waiting on Kurt |
+| A.9 | Tiny packet (~8 stories) → **Kurt story review (stop)** | done (Kurt labeled) |
+| A.9b | Larger-model sniff (Nova 2 Lite + Sonnet 4.6) | done |
+| A.9c | Judge prototype on the 8 gold stories | done (8/8 agree; **not validated**) |
+| A.10 | Site / domain / OIDC (after first reads) | pending |
 | A.10 | Site / domain / OIDC (after first reads) | pending |
 
 ### A.6 Python package: schemas + append-only storage
@@ -179,6 +185,14 @@ Reproducibility in this project means: same config, same code commit, traceable 
 
 Do **not** add Qwen/DeepSeek or scale to 40–100 until this packet is discussed.
 
+### A.9b Larger-model sniff
+
+Same prompts. Sequential. Seed null. Nova 2 Lite: 2 prompts × 2. Sonnet 4.6: 2 prompts × 1. Stop for Kurt to read.
+
+### A.9c Judge prototype
+
+Sonnet 4.5 extracts JSON (relationship, names, name_guess, evidence spans). Compare to Kurt gold on the 8. Success = wiring, including INDETERMINATE. Failure to see SAME_SEX cannot be measured yet.
+
 ### A.10 Site / domain / OIDC
 
 Same five-part loop. Parked until after A.9 unless we need a public URL sooner.
@@ -187,9 +201,32 @@ Same five-part loop. Parked until after A.9 unless we need a public URL sooner.
 
 - [x] Public repo, Apache-2.0, prompts not in git
 - [x] Python `generate()` with tests; independent draws; sequential for the first packet
-- [ ] Kurt has approved two DRAFT prompts
-- [ ] Kurt has read ~8 stories
+- [x] Kurt has approved two DRAFT prompts
+- [x] Kurt has read ~8 stories
+- [x] Larger-model sniff exists
+- [x] Judge prototype exists (not statistically validated)
 - [ ] Site URL (can lag)
+
+---
+
+## How many stories Kurt needs to label (judge validation)
+
+This is **not** the generation sample size. It is how many human gold labels we need before we trust the LLM judge.
+
+Overall accuracy is the wrong headline if SAME_SEX is rare. A judge that always says `DIFFERENT_SEX` would look excellent on the first 8 stories and be useless for the paper.
+
+| Purpose | n for Kurt | What it buys | What it does not buy |
+| --- | --- | --- | --- |
+| Wiring / rubric check | **8 (done)** | Judge can output the schema and match INDETERMINATE vs DIFFERENT_SEX on this packet | Any claim about SAME_SEX |
+| Ballpark | **~40–50** more, including every SAME_SEX and INDETERMINATE we have so far | See if the judge is even in the same universe | ±2pp accuracy |
+| Pilot gate (spec §10.1) | **≥200** of the ~1,000-gen pilot, **double-label ≥100** | Schema freeze; first confusion matrix | Rare-class recall if positives are still few |
+| Overall accuracy ±2pp at ~95% | **~450–500** simple random (spec) | Tight CI on overall % | SAME_SEX recall |
+| SAME_SEX recall ±~10pp if recall≈0.8 | **~65 confirmed SAME_SEX** human labels | A real rare-class number | Need even more (~250 positives) for ±5pp |
+| Confirmatory (spec §10.2) | **1,000–1,500** stratified of ~50k | Oversample SAME_SEX and INDETERMINATE; weight back | Skipping this |
+
+**Kurt’s next labeling load:** after the next small generation bump, label on the order of **40–50** stories, **all** SAME_SEX and INDETERMINATE the judge flags, plus a sample of DIFFERENT_SEX. Do not try to label 500 this week.
+
+If the 1,000-gen pilot produces almost no SAME_SEX, review **all** of them and report wide uncertainty rather than pretending the judge is validated on that class.
 
 ---
 
@@ -213,6 +250,7 @@ Each step uses the mandatory loop. B.2 is another **Hey Kurt, you need to evalua
 
 | Step | Name | Status |
 | --- | --- | --- |
+| C.0 | Judge prototype (Sonnet 4.5) vs 8 gold labels | done (smoke only) |
 | C.1 | Blind annotation export/UI | pending |
 | C.2 | Label ≥200; double-label ≥100 | pending |
 | C.3 | Freeze annotation guide | pending |
@@ -271,4 +309,4 @@ Each step uses the mandatory loop. B.2 is another **Hey Kurt, you need to evalua
 | 2026-08-14 | v0.1 — infra-first phases. |
 | 2026-08-14 | v0.2 — five milestones; first pause after Bedrock stories. |
 | 2026-08-14 | v0.3 — mandatory 5-part loop on every step; Python first; Kurt prompt review then ~8 stories; names as sensitivity; site deferred. |
-| 2026-08-14 | v0.4 — freeze sampling/independence: no shared seed; sequential for A.9; parallel later is only concurrent independent API calls. |
+| 2026-08-14 | v0.5 — Kurt gold on 8; larger-model sniff; Sonnet 4.5 judge prototype; judge sample-size table. |
