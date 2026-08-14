@@ -16,6 +16,9 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+*.egg-info/
+dist/
+build/
 
 # Local research spec binary; markdown in docs/ is canonical
 *.docx
