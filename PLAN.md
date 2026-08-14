@@ -8,7 +8,7 @@
 **Default region:** `us-west-2`  
 **Inference path (first build):** Amazon Bedrock in `us-west-2` — no separate OpenAI/Anthropic keys required  
 **Plan version:** 0.2 • 2026-08-14  
-**Current milestone:** A — First readable stories  
+**Current milestone:** A — First readable stories (A.1–A.5 done; next is OIDC / site / generator)  
 **When to talk to Kurt:** at the end of a milestone, or if a purchase / permission / scientific fork blocks progress. Do not pause after each small infra step.
 
 This file is the operational tracker. `docs/research-spec.md` is the scientific source of truth.
@@ -89,11 +89,11 @@ For each numbered step: investigate → temp plan in `docs/steps/` → execute �
 
 | Step | Name | Status |
 | --- | --- | --- |
-| A.1 | Investigate accounts / collisions | pending |
-| A.2 | Create public `kurtmb/worldcal` | pending |
-| A.3 | Bootstrap skeleton, license, this plan, prompt policy | pending |
-| A.4 | Convert research spec to `docs/research-spec.md` | pending |
-| A.5 | AWS tags + $20/month non-inference budget | pending |
+| A.1 | Investigate accounts / collisions | done |
+| A.2 | Create public `kurtmb/worldcal` | done |
+| A.3 | Bootstrap skeleton, license, this plan, prompt policy | done |
+| A.4 | Convert research spec to `docs/research-spec.md` | done |
+| A.5 | AWS tags + $20/month non-inference budget | done |
 | A.6 | GitHub → AWS OIDC deploy role | pending |
 | A.7 | Register `worldcal.org` + ACM + S3 + CloudFront + DNS (or CloudFront-only if purchase is delayed) | pending |
 | A.8 | Website v0 + CI deploy | pending |
