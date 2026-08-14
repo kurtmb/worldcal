@@ -1,0 +1,29 @@
+# Private study materials — do not publish until after confirmatory collection
+prompts/private/*
+!prompts/private/.gitkeep
+data/*
+!data/.gitkeep
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local research spec binary; markdown in docs/ is canonical
+*.docx
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Step scratch (clean up after each step; do not commit)
+docs/steps/_temp/
