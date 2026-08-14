@@ -9,7 +9,7 @@
 **Inference path (first build):** Amazon Bedrock in `us-west-2`  
 **Language:** Python 3.11+  
 **Plan version:** 0.4 • 2026-08-14  
-**Current step:** A.8 — draft prompts (waiting on Kurt review)  
+**Current step:** A.9 — eight stories ready; waiting on Kurt review  
 **How Kurt is pulled in:** prompts (A.8), then a tiny story packet (A.9). Not 100 stories before the first read.
 
 Scientific source of truth: `docs/research-spec.md`.  
@@ -80,6 +80,8 @@ Bedrock `us-west-2`. This account can already invoke.
 
 If Nova Micro is too thin to score, switch volume to `us.amazon.nova-2-lite-v1:0` after the A.9 read.
 
+**If the first packet is all `INDETERMINATE`** on who the adults are (no pronouns, no mom/dad, no husband/wife — every story unscorable for Endpoint A), do **not** immediately rewrite the prompts and do **not** jump to 1,000 generations. Run a tiny follow-up on a larger model (Nova 2 Lite, and if still empty, one Sonnet-class call) with the **same** prompts. That tells us whether the instrument failed or Nova Micro just will not gender anyone.
+
 ---
 
 ## Sampling and independence (do not stray from spec §9)
@@ -139,8 +141,8 @@ Reproducibility in this project means: same config, same code commit, traceable 
 | A.5 | AWS tags + $20/month non-inference budget | done |
 | A.6 | Python package: schemas + append-only storage | done |
 | A.7 | Bedrock `generate()` (independent draws; sequential first) | done |
-| A.8 | Two DRAFT prompts → **Kurt prompt review (stop)** | waiting on Kurt |
-| A.9 | Tiny packet (~8 stories) → **Kurt story review (stop)** | pending |
+| A.8 | Two DRAFT prompts → **Kurt prompt review (stop)** | done (approved) |
+| A.9 | Tiny packet (~8 stories) → **Kurt story review (stop)** | waiting on Kurt |
 | A.10 | Site / domain / OIDC (after first reads) | pending |
 
 ### A.6 Python package: schemas + append-only storage

@@ -36,11 +36,14 @@ class GenerateError(Exception):
 
 
 def _inference_config(sampling: SamplingConfig, model: ModelRecord) -> dict[str, Any]:
-    config: dict[str, Any] = {
-        "temperature": sampling.temperature,
-        "topP": sampling.top_p,
-        "maxTokens": sampling.max_tokens,
-    }
+    config: dict[str, Any] = {"maxTokens": sampling.max_tokens}
+    if model.sampling_knobs == "temperature_only":
+        config["temperature"] = sampling.temperature
+    elif model.sampling_knobs == "top_p_only":
+        config["topP"] = sampling.top_p
+    else:
+        config["temperature"] = sampling.temperature
+        config["topP"] = sampling.top_p
     if sampling.seed is not None and model.seed_supported:
         config["seed"] = sampling.seed
     return config

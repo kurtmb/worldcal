@@ -68,6 +68,8 @@ class ModelRecord(BaseModel):
     bedrock_model_id: str
     display_name: str
     seed_supported: bool = False
+    # Anthropic Converse on Bedrock rejects temperature and top_p together.
+    sampling_knobs: str = "temperature_and_top_p"
 
 
 class PromptRecord(BaseModel):

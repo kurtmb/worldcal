@@ -32,7 +32,13 @@ def test_inference_config_omits_seed_by_default() -> None:
     assert config["topP"] == 0.9
 
 
-def test_seed_not_sent_when_model_does_not_support_it() -> None:
+def test_haiku_omits_top_p() -> None:
+    from worldcal.models import HAIKU_45
+
+    config = _inference_config(SamplingConfig(), HAIKU_45)
+    assert config["temperature"] == 0.7
+    assert "topP" not in config
+    assert "seed" not in config
     sampling = SamplingConfig(seed=99)
     config = _inference_config(sampling, NOVA_MICRO)
     assert NOVA_MICRO.seed_supported is False
