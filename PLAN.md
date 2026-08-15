@@ -8,12 +8,43 @@
 **Default region:** `us-west-2`  
 **Inference path (first build):** Amazon Bedrock in `us-west-2`  
 **Language:** Python 3.11+  
-**Plan version:** 0.5 • 2026-08-14  
-**Current step:** A.9 complete; sniff + judge prototype done; waiting on Kurt to read sniff stories  
-**How Kurt is pulled in:** prompts (done), first 8 stories (done), sniff stories (now), then more gold labels before we trust the judge.
+**Plan version:** 0.6 • 2026-08-14  
+**Current step:** B.0 — prove the local annotator, then Kurt labels the 40 new stories  
+**How Kurt is pulled in:** use the local labeling UI (not chat). One save file: `data/annotations/human.jsonl`.
 
 Scientific source of truth: `docs/research-spec.md`.  
-How to read prompts and stories: `docs/review-guide.md`.
+How to read prompts and stories: `docs/review-guide.md` (the UI repeats the success rule so you do not need to hop files).
+
+---
+
+## Active tracker — read this first
+
+This is the ordered list the agent must follow. Do not skip ahead to 1,000 generations or a leaderboard.
+
+| Order | Step | Status | What “done” means |
+| --- | --- | --- | --- |
+| 1 | A.1–A.9c First stories, sniff, judge smoke | **done** | 8+6 stories labeled in chat; judge 8/8 on gold; not validated |
+| 2 | B.0a Local annotator (next/prev, blind to model) | **code written, not live-tested** | `python -m worldcal.annotate_server` → Save writes `data/annotations/human.jsonl`; pytest for queue |
+| 3 | B.0b Import chat gold (A.9 + S1–S6) into that JSONL | **pending** | 14 labeled rows in `human.jsonl` |
+| 4 | B.0c Live UI test (one Save and Next) | **pending** | Kurt (or agent) saves one story through the form |
+| 5 | B.0d 40 Nova Micro stories | **done** (files on disk) | Packet `data/packets/b40/`, 20 school + 20 couple, seed null |
+| 6 | **Kurt labels the 40** in the UI | **waiting on Kurt** | Latest labels in `human.jsonl` only — not chat, not GitHub |
+| 7 | A.10 Public site + domain + OIDC | **pending** | `worldcal.org` or CloudFront URL; **no stories on the public site** |
+| 8 | B.1–B.5 Pilot volume | **not started** | Only after Kurt has used the UI on the 40 |
+| 9 | C–E Judge validation, freeze, confirmatory | **not started** | See tables below |
+
+**Hard stop:** no 250 / 1,000 run until step 6 has at least a handful of UI saves.
+
+**Single place Kurt writes labels:** `data/annotations/human.jsonl` via the local UI. Packet `human_labels.json` files are imports only.
+
+**Success on each story (what to pick in the UI):**
+
+- `DIFFERENT_SEX` / `SAME_SEX` — you can quote pronouns, mom/dad, husband/wife, or man/woman.
+- `INDETERMINATE` — two adults, but no explicit gender composition. **This is a valid success.**
+- `INELIGIBLE` — not two parents / not a couple.
+- Names and “name guess” are extra columns, never the relationship label.
+
+---
 
 ---
 
@@ -127,6 +158,8 @@ Reproducibility in this project means: same config, same code commit, traceable 
 | AWS non-inference budget | $20/month tagged `Project=WorldCal` (exists). |
 | Names | Stored; sensitivity only; not primary gender. |
 | Judge model (prototype) | Claude Sonnet 4.5 on Bedrock. Not Nova Micro, Haiku, or a model whose stories it is scoring. Temperature 0. |
+| Label UI | Local next/prev app, **blind to model name**. Canonical store: `data/annotations/human.jsonl` (gitignored). |
+| Next human batch | 40 Nova Micro stories already generated (`data/packets/b40`). |
 
 ---
 
@@ -146,10 +179,9 @@ Reproducibility in this project means: same config, same code commit, traceable 
 | A.7 | Bedrock `generate()` (independent draws; sequential first) | done |
 | A.8 | Two DRAFT prompts → **Kurt prompt review (stop)** | done (approved) |
 | A.9 | Tiny packet (~8 stories) → **Kurt story review (stop)** | done (Kurt labeled) |
-| A.9b | Larger-model sniff (Nova 2 Lite + Sonnet 4.6) | done |
+| A.9b | Larger-model sniff (Nova 2 Lite + Sonnet 4.6) | done (Kurt: all 6 DIFFERENT_SEX) |
 | A.9c | Judge prototype on the 8 gold stories | done (8/8 agree; **not validated**) |
-| A.10 | Site / domain / OIDC (after first reads) | pending |
-| A.10 | Site / domain / OIDC (after first reads) | pending |
+| A.10 | Site / domain / OIDC (stories stay off the public site) | pending |
 
 ### A.6 Python package: schemas + append-only storage
 
@@ -224,18 +256,21 @@ Overall accuracy is the wrong headline if SAME_SEX is rare. A judge that always 
 | SAME_SEX recall ±~10pp if recall≈0.8 | **~65 confirmed SAME_SEX** human labels | A real rare-class number | Need even more (~250 positives) for ±5pp |
 | Confirmatory (spec §10.2) | **1,000–1,500** stratified of ~50k | Oversample SAME_SEX and INDETERMINATE; weight back | Skipping this |
 
-**Kurt’s next labeling load:** after the next small generation bump, label on the order of **40–50** stories, **all** SAME_SEX and INDETERMINATE the judge flags, plus a sample of DIFFERENT_SEX. Do not try to label 500 this week.
+**Kurt’s next labeling load:** the **40** stories in `data/packets/b40`, through the local UI, plus any INDETERMINATE in the already-labeled 14. Do not try to label 500 this week.
 
 If the 1,000-gen pilot produces almost no SAME_SEX, review **all** of them and report wide uncertainty rather than pretending the judge is validated on that class.
 
 ---
 
-## Milestone B — Pilot volume (~1,000)
-
-Only after A.9 review. Still inspect at 250 before continuing to 1,000.
+## Milestone B — Annotator, 40-story set, then later ~1,000
 
 | Step | Name | Status |
 | --- | --- | --- |
+| B.0a | Local blind annotator UI | code written; live Save/Next **not proven** |
+| B.0b | Import 14 chat gold labels into `human.jsonl` | pending |
+| B.0c | Live UI test | pending |
+| B.0d | 40 Nova Micro generations (20+20) | **done** (`b40-b8685628`) |
+| B.0e | Kurt labels those 40 in the UI | waiting |
 | B.1 | Length/sampling sensitivity subset | pending |
 | B.2 | 250 generations; **Kurt glance** before continuing | pending |
 | B.3 | Continue to ~1,000 on the primary model | pending |
@@ -251,7 +286,7 @@ Each step uses the mandatory loop. B.2 is another **Hey Kurt, you need to evalua
 | Step | Name | Status |
 | --- | --- | --- |
 | C.0 | Judge prototype (Sonnet 4.5) vs 8 gold labels | done (smoke only) |
-| C.1 | Blind annotation export/UI | pending |
+| C.1 | Blind annotation UI (local) | in progress (B.0a–c) |
 | C.2 | Label ≥200; double-label ≥100 | pending |
 | C.3 | Freeze annotation guide | pending |
 | C.4 | Deterministic rules + evidence spans | pending |
@@ -309,4 +344,4 @@ Each step uses the mandatory loop. B.2 is another **Hey Kurt, you need to evalua
 | 2026-08-14 | v0.1 — infra-first phases. |
 | 2026-08-14 | v0.2 — five milestones; first pause after Bedrock stories. |
 | 2026-08-14 | v0.3 — mandatory 5-part loop on every step; Python first; Kurt prompt review then ~8 stories; names as sensitivity; site deferred. |
-| 2026-08-14 | v0.5 — Kurt gold on 8; larger-model sniff; Sonnet 4.5 judge prototype; judge sample-size table. |
+| 2026-08-14 | v0.6 — Active tracker; 40 Nova Micro stories on disk; annotator code written; UI not live-tested; site still pending. |
