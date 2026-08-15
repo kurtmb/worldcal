@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections.abc import Sequence
 from typing import Any, Protocol
 
@@ -160,5 +161,24 @@ def generate_sequential(
     return results
 
 
-def prompt_hash_check(prompt: PromptRecord) -> str:
-    return sha256_text(prompt.text)
+def generate_pool(
+    client: ConverseClient,
+    jobs: Sequence[tuple[ModelRecord, PromptRecord, SamplingConfig]],
+    run_id: str,
+    max_workers: int = 4,
+) -> list[GenerationRecord]:
+    """Independent draws with bounded concurrency. Seed must be None on every job."""
+    if any(sampling.seed is not None for _, _, sampling in jobs):
+        raise GenerateError("generate_pool requires seed=None so draws stay independent")
+    results: list[GenerationRecord | None] = [None] * len(jobs)
+
+    def _one(index: int, job: tuple[ModelRecord, PromptRecord, SamplingConfig]) -> tuple[int, GenerationRecord]:
+        model, prompt, sampling = job
+        return index, generate(client, model, prompt, sampling, run_id=run_id)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [pool.submit(_one, i, job) for i, job in enumerate(jobs)]
+        for fut in as_completed(futures):
+            index, rec = fut.result()
+            results[index] = rec
+    return [rec for rec in results if rec is not None]

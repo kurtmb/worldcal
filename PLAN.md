@@ -8,9 +8,9 @@
 **Default region:** `us-west-2`  
 **Inference path (first build):** Amazon Bedrock in `us-west-2`  
 **Language:** Python 3.11+  
-**Plan version:** 0.6 • 2026-08-14  
-**Current step:** B.0 — prove the local annotator, then Kurt labels the 40 new stories  
-**How Kurt is pulled in:** use the local labeling UI (not chat). One save file: `data/annotations/human.jsonl`.
+**Plan version:** 0.7 • 2026-08-14  
+**Current step:** Kurt labels the **challenge set** (~50) in the UI while mass study generation + judge run  
+**How Kurt is pulled in:** local UI. Challenge stories first. Partnership term optional. Canonical file: `data/annotations/human.jsonl`.
 
 Scientific source of truth: `docs/research-spec.md`.  
 How to read prompts and stories: `docs/review-guide.md` (the UI repeats the success rule so you do not need to hop files).
@@ -23,17 +23,17 @@ This is the ordered list the agent must follow. Do not skip ahead to 1,000 gener
 
 | Order | Step | Status | What “done” means |
 | --- | --- | --- | --- |
-| 1 | A.1–A.9c First stories, sniff, judge smoke | **done** | 8+6 stories labeled in chat; judge 8/8 on gold; not validated |
-| 2 | B.0a Local annotator (next/prev, blind to model) | **code written, not live-tested** | `python -m worldcal.annotate_server` → Save writes `data/annotations/human.jsonl`; pytest for queue |
-| 3 | B.0b Import chat gold (A.9 + S1–S6) into that JSONL | **pending** | 14 labeled rows in `human.jsonl` |
-| 4 | B.0c Live UI test (one Save and Next) | **pending** | Kurt (or agent) saves one story through the form |
-| 5 | B.0d 40 Nova Micro stories | **done** (files on disk) | Packet `data/packets/b40/`, 20 school + 20 couple, seed null |
-| 6 | **Kurt labels the 40** in the UI | **waiting on Kurt** | Latest labels in `human.jsonl` only — not chat, not GitHub |
-| 7 | A.10 Public site + domain + OIDC | **pending** | `worldcal.org` or CloudFront URL; **no stories on the public site** |
-| 8 | B.1–B.5 Pilot volume | **not started** | Only after Kurt has used the UI on the 40 |
-| 9 | C–E Judge validation, freeze, confirmatory | **not started** | See tables below |
+| 1 | A.1–A.9c First stories, sniff, judge smoke | **done** | 8+6 chat labels; 5 more via UI (all DIFFERENT_SEX so far) |
+| 2 | B.0 annotator | **working** | 5 UI saves landed in `human.jsonl`. Independent scroll + optional partnership. |
+| 3 | Challenge set (~50 known-mix stories) | **generating** | Packet `judge-eval`. Kurt labels these. **Not** used for Census calibration. |
+| 4 | Mass study run | **queued** | 50+50 each: Nova Micro, Nova 2 Lite, Sonnet 4.5. Same two *study* prompts. Seed null. Independent pool, no shared seed. |
+| 5 | Auto-judge mass study stories | **queued** | Sonnet 4.5 judge → `data/annotations/judge.jsonl`. Kurt reviews SAME_SEX, INDETERMINATE, disagreements. |
+| 6 | A.10 public site | **pending** | No stories on the public site |
+| 7 | Confirmatory 1,000 / 10-model | **not started** | After judge vs Kurt on the challenge set |
 
-**Hard stop:** no 250 / 1,000 run until step 6 has at least a handful of UI saves.
+**Hard stop:** do not mix `judge-eval` stories into Endpoint A rates. Those are labeled so the judge can see SAME_SEX / INDETERMINATE on purpose.
+
+**Partnership term:** optional. Fill only for husband/wife, boyfriend/girlfriend, or partner. **Shared last name is not marriage.**
 
 **Single place Kurt writes labels:** `data/annotations/human.jsonl` via the local UI. Packet `human_labels.json` files are imports only.
 
@@ -344,4 +344,4 @@ Each step uses the mandatory loop. B.2 is another **Hey Kurt, you need to evalua
 | 2026-08-14 | v0.1 — infra-first phases. |
 | 2026-08-14 | v0.2 — five milestones; first pause after Bedrock stories. |
 | 2026-08-14 | v0.3 — mandatory 5-part loop on every step; Python first; Kurt prompt review then ~8 stories; names as sensitivity; site deferred. |
-| 2026-08-14 | v0.6 — Active tracker; 40 Nova Micro stories on disk; annotator code written; UI not live-tested; site still pending. |
+| 2026-08-14 | v0.7 — 5 UI labels stored; partnership optional; challenge set + 3-model mass run; Kurt not the bottleneck. |

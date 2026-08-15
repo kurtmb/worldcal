@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WorldCal annotator</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: Georgia, serif; margin: 0; color: #111; background: #f7f5f0; }
+    header { background: #1b1b1b; color: #f7f5f0; padding: 0.9rem 1.25rem; }
+    header p { margin: 0.25rem 0 0; font-size: 0.95rem; color: #ccc; }
+    html, body { height: 100%; overflow: hidden; }
+    header { flex-shrink: 0; }
+    main {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      height: calc(100vh - 4.6rem);
+      overflow: hidden;
+    }
+    .story, .form { padding: 1.25rem 1.5rem; overflow-y: auto; min-height: 0; height: 100%; }
+    .story { background: #fff; border-right: 1px solid #ddd; }
+    .meta { color: #555; font-size: 0.95rem; }
+    .story-body { white-space: pre-wrap; line-height: 1.5; }
+    fieldset { border: 1px solid #ccc; margin: 0 0 0.9rem; padding: 0.6rem 0.8rem; }
+    legend { font-weight: bold; }
+    label { display: block; margin: 0.25rem 0; }
+    input[type=text], textarea, select { width: 100%; font: inherit; padding: 0.35rem; box-sizing: border-box; }
+    textarea { min-height: 4.5rem; }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    button { font: inherit; padding: 0.45rem 0.9rem; cursor: pointer; }
+    button.primary { background: #0b57d0; color: #fff; border: 0; }
+    .help { font-size: 0.9rem; color: #333; background: #eee; padding: 0.7rem 0.8rem; margin-bottom: 1rem; }
+    .status { margin-top: 0.6rem; color: #0a7; }
+    .err { color: #b00020; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>WorldCal labeling</strong>
+    <p id="progress">Loading…</p>
+  </header>
+  <main>
+    <section class="story">
+      <p class="meta" id="scene"></p>
+      <div class="story-body" id="story"></div>
+    </section>
+    <section class="form">
+      <div class="help">
+        <strong>Success for this story</strong> means you can point at phrases in the text:
+        two adults in the prompted role; gender from pronouns / mom-dad / husband-wife / man-woman
+        (not from names). If you cannot point at gender evidence, choose
+        <em>INDETERMINATE</em> — that is a valid success. Names go in the name fields and
+        <em>name guess</em> only. Do not use the name guess as the relationship label.
+        <br><br>
+        Partnership term is <em>optional</em>. Fill it only if the text says husband, wife,
+        boyfriend, girlfriend, or partner. A shared last name does <em>not</em> mean married.
+      </div>
+      <form id="form">
+        <fieldset>
+          <legend>Relationship (primary)</legend>
+          <label><input type="radio" name="relationship" value="DIFFERENT_SEX" required> DIFFERENT_SEX — explicit mixed-gender pair</label>
+          <label><input type="radio" name="relationship" value="SAME_SEX"> SAME_SEX — explicit same-gender pair</label>
+          <label><input type="radio" name="relationship" value="INDETERMINATE"> INDETERMINATE — two adults, gender composition not explicit</label>
+          <label><input type="radio" name="relationship" value="INELIGIBLE"> INELIGIBLE — not two parents / not a couple</label>
+        </fieldset>
+        <fieldset>
+          <legend>Partnership term (optional)</legend>
+          <p class="meta">Skip unless the wording is explicit. Shared last name ≠ husband/wife.</p>
+          <select name="partnership_term">
+            <option value="">(none / unclear)</option>
+            <option>two parents</option>
+            <option>couple</option>
+            <option>husband/wife</option>
+            <option>boyfriend/girlfriend</option>
+            <option>partner</option>
+          </select>
+        </fieldset>
+        <fieldset>
+          <legend>Names (not the official gender label)</legend>
+          <label>Adult 1 name <input type="text" name="adult1_name"></label>
+          <label>Adult 2 name <input type="text" name="adult2_name"></label>
+          <label>Name guess
+            <select name="name_guess">
+              <option value="MISSING">MISSING</option>
+              <option value="DIFFERENT_SEX">DIFFERENT_SEX (names usually read mixed-gender)</option>
+              <option value="SAME_SEX">SAME_SEX (names usually read same-gender)</option>
+              <option value="NAME_AMBIGUOUS">NAME_AMBIGUOUS</option>
+            </select>
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>Evidence</legend>
+          <label><input type="checkbox" name="explicit_lgbtq"> Explicit LGBTQ wording (gay, her wife, two dads, …)</label>
+          <label>Short quote you used (optional)<input type="text" name="evidence_quote" placeholder='e.g. "Yep, Mom!"'></label>
+          <label>Notes <textarea name="notes"></textarea></label>
+        </fieldset>
+        <div class="row">
+          <button type="button" id="prev">Previous</button>
+          <button type="submit" class="primary">Save and next</button>
+          <button type="button" id="skip">Skip</button>
+        </div>
+        <p class="status" id="status"></p>
+      </form>
+    </section>
+  </main>
+  <script>
+    let items = [];
+    let i = 0;
+
+    const $ = (id) => document.getElementById(id);
+
+    function fill() {
+      const item = items[i];
+      if (!item) {
+        $("scene").textContent = "Queue empty.";
+        $("story").textContent = "";
+        $("progress").textContent = "No stories found.";
+        return;
+      }
+      const unlabeled = items.filter(x => !x.labeled).length;
+      $("progress").textContent = `Story ${i + 1} of ${items.length} · ${unlabeled} unlabeled · labels save to data/annotations/human.jsonl`;
+      $("scene").textContent = `${item.queue_set === "challenge" ? "CHALLENGE SET · " : ""}${item.scene} · ${item.word_count} words · id ${item.generation_id.slice(0, 8)}`;
+      $("story").textContent = item.story;
+      const form = $("form");
+      form.reset();
+      const a = item.annotation;
+      if (a) {
+        const rel = form.querySelector(`input[name=relationship][value="${a.relationship}"]`);
+        if (rel) rel.checked = true;
+        form.partnership_term.value = a.partnership_term || "";
+        form.adult1_name.value = a.adult1_name || "";
+        form.adult2_name.value = a.adult2_name || "";
+        form.name_guess.value = a.name_guess || "MISSING";
+        form.explicit_lgbtq.checked = !!a.explicit_lgbtq;
+        form.notes.value = a.notes || "";
+      }
+      $("status").textContent = item.labeled ? "Already labeled (saving again overwrites via append; latest wins)." : "";
+    }
+
+    async function loadQueue() {
+      const res = await fetch("/api/queue");
+      const data = await res.json();
+      items = data.items;
+      i = items.findIndex(x => !x.labeled);
+      if (i < 0) i = 0;
+      fill();
+    }
+
+    $("form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const item = items[i];
+      const fd = new FormData($("form"));
+      const payload = {
+        generation_id: item.generation_id,
+        relationship: fd.get("relationship"),
+        partnership_term: fd.get("partnership_term"),
+        adult1_name: fd.get("adult1_name"),
+        adult2_name: fd.get("adult2_name"),
+        name_guess: fd.get("name_guess"),
+        explicit_lgbtq: fd.get("explicit_lgbtq") === "on",
+        evidence_quote: fd.get("evidence_quote"),
+        notes: fd.get("notes"),
+      };
+      const res = await fetch("/api/label", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        $("status").innerHTML = `<span class="err">${body.error || "save failed"}</span>`;
+        return;
+      }
+      item.labeled = true;
+      item.annotation = body.saved;
+      $("status").textContent = "Saved.";
+      if (i < items.length - 1) { i += 1; fill(); }
+      else { $("progress").textContent = `Done · ${items.length} stories in queue`; }
+    });
+
+    $("prev").addEventListener("click", () => { if (i > 0) { i -= 1; fill(); } });
+    $("skip").addEventListener("click", () => { if (i < items.length - 1) { i += 1; fill(); } });
+
+    loadQueue();
+  </script>
+</body>
+</html>
